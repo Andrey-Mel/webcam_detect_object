@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../train_detector_for_acvat"
+		}
+	],
+	"settings": {}
+}

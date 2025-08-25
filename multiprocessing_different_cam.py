@@ -1,15 +1,25 @@
 import cv2
 import multiprocessing as mp
 import time
+import torch
+from ultralytics import YOLO
 
+
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+writers = {}
+
+model = YOLO('yolo11m.pt')
 
 def capture_camera_process(idx_cam: int, queue: mp.Queue):
     """function to work in diferent process - capture frame and sent in queue"""
-    cap = cv2.VideoCapture(idx_cam)
+    cap = cv2.VideoCapture(idx_cam)#, cv2.CAP_DSHOW
     if not cap.isOpened():
         print(f'Cam {idx_cam} not opened')
         return
     fps = int(cap.get(cv2.CAP_PROP_FPS))
+    # if fps == 0:
+    #     fps = 30
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     print(f"[Процесс {idx_cam}] Подключено: {width}x{height} @ {fps}fps")
@@ -20,24 +30,32 @@ def capture_camera_process(idx_cam: int, queue: mp.Queue):
         if not ret:
             print(f'Not get frame')
             break
-        # Добавляем текст на кадре (можно и в главном процессе, но так легче)
+        result = model(frame, conf=0.5, iou=0.2, imgsz=1024, verbose=False, device=device)
+        
+        cls = result[0].boxes.cls.cpu().numpy()
+        coords = result[0].boxes.xyxy.cpu().numpy()
+        for cl, (x, y, x1, y1) in zip(cls, coords):
+            cv2.rectangle(frame, (int(x), int(y)), (int(x1), int(y1)), (255, 0, 0), 1)
+            # Добавляем текст на кадре (можно и в главном процессе, но так легче)
+            
+            text_cls = str(cl)
+            cv2.putText(frame, text_cls, (int(x), int(y-3)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0),1)
         text = f'Cam {idx_cam} | {width}x{height} @ {fps}fps'
         cv2.putText(frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
-
         # if queue is full
         if not queue.empty():
             queue.get() # cleareing queue
-        queue.put((idx_cam, frame))
+        queue.put((idx_cam, frame, fps, width, height))
 
         
-        time.sleep(0.01)
+        # time.sleep(0.05)
     cap.release()
     queue.put((idx_cam, None)) # Signal to end
     print(f'Process cam {idx_cam} END.')
 
 
 if __name__=='__main__':
-    mp.set_start_method('spawn', force=True)  # Критично для Windows/macOS
+    mp.set_start_method('spawn', force=False)  # Критично для Windows/macOS
     idx_cam_1 = 0
     idx_cam_2 = 1
 
@@ -53,30 +71,42 @@ if __name__=='__main__':
     proc2.start()
 
     print('Start processes to capture cadrs. Press "q" to exit')
+
+    current_time = time.strftime("%Y%m%d_%H%M%S")
     try:
         while True:
+            
             frame1 = None
             frame2 = None
 
             if not queue1.empty():
-                cam_id, frame1 = queue1.get()
+                cam_id, frame1, fps, width, height = queue1.get()
                 
                 if frame1 is None:
                     print('Camera 1 is stop')
                     break
                 cv2.imshow(f'Camera_{cam_id}', frame1)
+                # writer 1
+                if cam_id not in writers:
+                    filename1 = fr"record_cam1\camera_{cam_id}_{current_time}.avi"
+                    fourcc = cv2.VideoWriter_fourcc(*'XVID') # or 'MP4V' for mp4
+                    writers[cam_id] = cv2.VideoWriter(filename1, fourcc, fps, (width, height))
+                    print(f'Record start from cam - {cam_id}')
+                writers[cam_id].write(frame1)
+                
             
             if not queue2.empty():
-                cam_id, frame2 = queue2.get()
+                cam_id, frame2, fps, width, height = queue2.get()
                 if frame2 is None:
                     print('Camera 2 is stop')
                     break
                 cv2.imshow(f'Camera {cam_id}', frame2)
-
-            # if frame1 is not None:
-            #     cv2.imshow(f'Camera {cam_id}', frame2)
-            # if frame2 is not None:
-            #     cv2.imshow(f'Camera {cam_id}', frame2)
+                if cam_id not in writers:
+                    filename2 = fr"record_cam2\camera_{cam_id}_{current_time}.avi"
+                    fourcc = cv2.VideoWriter_fourcc(*'XVID') # or 'MP4V' for mp4
+                    writers[cam_id] = cv2.VideoWriter(filename2, fourcc, fps, (width, height))
+                    print(f'Record start from cam - {cam_id}')
+                writers[cam_id].write(frame2)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 print('Exit by command user')
@@ -87,11 +117,14 @@ if __name__=='__main__':
 
     finally:
         # stoped processes
+        for writer in writers.values():
+            writer.release()
         cv2.destroyAllWindows()
+        
         proc1.terminate()
         proc2.terminate()
         proc1.join(timeout=1)
         proc2.join(timeout=1)
-        cv2.destroyAllWindows()
+        
         print('Resourses to free')
 

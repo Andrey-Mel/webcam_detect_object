@@ -17,6 +17,13 @@ def capture_camera_process(idx_cam: int, queue: mp.Queue):
     if not cap.isOpened():
         print(f'Cam {idx_cam} not opened')
         return
+
+    #set params for cameras fps, width, height
+    cap.set(cv2.CAP_PROP_FPS, 30)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+
+
     fps = int(cap.get(cv2.CAP_PROP_FPS))
     # if fps == 0:
     #     fps = 30
@@ -24,7 +31,7 @@ def capture_camera_process(idx_cam: int, queue: mp.Queue):
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     print(f"[Процесс {idx_cam}] Подключено: {width}x{height} @ {fps}fps")
 
-
+   
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -48,14 +55,15 @@ def capture_camera_process(idx_cam: int, queue: mp.Queue):
         queue.put((idx_cam, frame, fps, width, height))
 
         
-        # time.sleep(0.05)
+        time.sleep(0.08)
+        
     cap.release()
     queue.put((idx_cam, None)) # Signal to end
     print(f'Process cam {idx_cam} END.')
 
 
 if __name__=='__main__':
-    mp.set_start_method('spawn', force=False)  # Критично для Windows/macOS
+    mp.set_start_method('spawn', force=True)  # Критично для Windows/macOS
     idx_cam_1 = 0
     idx_cam_2 = 1
 
@@ -73,6 +81,7 @@ if __name__=='__main__':
     print('Start processes to capture cadrs. Press "q" to exit')
 
     current_time = time.strftime("%Y%m%d_%H%M%S")
+    
     try:
         while True:
             
@@ -89,7 +98,7 @@ if __name__=='__main__':
                 # writer 1
                 if cam_id not in writers:
                     filename1 = fr"record_cam1\camera_{cam_id}_{current_time}.avi"
-                    fourcc = cv2.VideoWriter_fourcc(*'XVID') # or 'MP4V' for mp4
+                    fourcc = cv2.VideoWriter_fourcc(*'MP4V') # or 'MP4V' for mp4, 'xvid' for avi
                     writers[cam_id] = cv2.VideoWriter(filename1, fourcc, fps, (width, height))
                     print(f'Record start from cam - {cam_id}')
                 writers[cam_id].write(frame1)
@@ -103,7 +112,7 @@ if __name__=='__main__':
                 cv2.imshow(f'Camera {cam_id}', frame2)
                 if cam_id not in writers:
                     filename2 = fr"record_cam2\camera_{cam_id}_{current_time}.avi"
-                    fourcc = cv2.VideoWriter_fourcc(*'XVID') # or 'MP4V' for mp4
+                    fourcc = cv2.VideoWriter_fourcc(*'MP4V') # or 'MP4V' for mp4, xvid for avi
                     writers[cam_id] = cv2.VideoWriter(filename2, fourcc, fps, (width, height))
                     print(f'Record start from cam - {cam_id}')
                 writers[cam_id].write(frame2)
@@ -112,6 +121,8 @@ if __name__=='__main__':
                 print('Exit by command user')
                 break
             time.sleep(0.01)
+            cur_time = time.time()
+            
     except KeyboardInterrupt:
         print('Stopped USER')
 

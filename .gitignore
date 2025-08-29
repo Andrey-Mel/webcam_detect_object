@@ -1,3 +1,8 @@
 record_cam1
 record_cam2
 weights_yolo
+yolo11m_ncnn_model
+yolo11m.onnx
+yolo11m.pt
+yolo11m.torchscript
+yolo11n.pt

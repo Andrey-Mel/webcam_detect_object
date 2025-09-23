@@ -98,7 +98,15 @@ def camera_process(cam_id: int, dir_name: str , raw_frame_queue, detection_input
                     continue
                 #processing frames YOLO
                 result = model(frame, conf=0.5, iou=0.2, imgsz=640, device=device, verbose=False)
-                annotated_frame = result[0].plot()
+                # annotated_frame = result[0].plot()
+                boxes = result[0].boxes.xyxy.cpu()
+                confs = result[0].bexes.conf.cpu()
+                idx = [int(i) for i in result[0].boxes.cls.cpu()]
+                for box, conf, id_cl in zip(boxes, confs, idx):
+                    x1 = box[0]
+                    y1 = box[1]
+                    x2 = box[2]
+                    y2 = box[3]
 
                 #send a frame to show
                 # if cam_idx == 0:
@@ -107,13 +115,6 @@ def camera_process(cam_id: int, dir_name: str , raw_frame_queue, detection_input
                 detection_output_queue.put(annotated_frame)
                     # detection_input_queue.task_done()
 
-                # elif cam_idx == 1:
-                    # для второй камеры - отдельная очередь(или можно использовать одну с тегами)
-                    # в данном случает отдельная
-                    # if detection_output_queue2.full():
-                    #     detection_output_queue2.get()
-                    # detection_output_queue2.put(annotated_frame)
-                    # detection_output_queue2.task_done()
 
             except queue.Empty:
                 continue

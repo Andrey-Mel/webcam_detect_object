@@ -34,7 +34,7 @@ def camera_process(cam_id: int, dir_name: str , raw_frame_queue, detection_input
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # инициализация модели пока сделано просто без проверок
-    model = YOLO('yolo11m.pt')
+    model = YOLO(r'C:\TASK_DETECT_DRONE\CODES_DETECT_DRONE\YOLO+calc_distance\weights_sdu_v3\best.pt')
    
     # flag stopped
     # stop_event = threading.Event()
@@ -54,11 +54,12 @@ def camera_process(cam_id: int, dir_name: str , raw_frame_queue, detection_input
                 
             while not stop_event.is_set():
                 # print('In capture in loop while!!!!')
-                ret, frame = cap.read()
+                ret, frame_in = cap.read()
                 if not ret:
                     print("Not read frame")
                     break
-
+                frame = cv2.resize(frame_in, (1024, 768), interpolation=cv2.INTER_AREA)   # ! 1024x768 уменьшаю потому что видео большое 360x640
+                # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)                            # !
                 #send cadr to record
                 if raw_frame_queue.full():
                     raw_frame_queue.get()  # delete from queue old frame
@@ -97,16 +98,16 @@ def camera_process(cam_id: int, dir_name: str , raw_frame_queue, detection_input
                 if frame is None:
                     continue
                 #processing frames YOLO
-                result = model(frame, conf=0.5, iou=0.2, imgsz=640, device=device, verbose=False)
-                # annotated_frame = result[0].plot()
-                boxes = result[0].boxes.xyxy.cpu()
-                confs = result[0].bexes.conf.cpu()
-                idx = [int(i) for i in result[0].boxes.cls.cpu()]
-                for box, conf, id_cl in zip(boxes, confs, idx):
-                    x1 = box[0]
-                    y1 = box[1]
-                    x2 = box[2]
-                    y2 = box[3]
+                result = model(frame, conf=0.4, iou=0.2, imgsz = 1024, device=device, verbose=False)
+                annotated_frame = result[0].plot()
+                # boxes = result[0].boxes.xyxy.cpu()
+                # confs = result[0].bexes.conf.cpu()
+                # idx = [int(i) for i in result[0].boxes.cls.cpu()]
+                # for box, conf, id_cl in zip(boxes, confs, idx):
+                #     x1 = box[0]
+                #     y1 = box[1]
+                #     x2 = box[2]
+                #     y2 = box[3]
 
                 #send a frame to show
                 # if cam_idx == 0:
@@ -257,7 +258,7 @@ def display_img2img(detection_output_queue1, detection_output_queue2, stop_event
                 frame1[y_offset:y_offset+h2, x_offset:x_offset+w2] = frame2_resized
             else:
                 print("[DISPLAY] Не удалось наложить PiP — размеры не подходят.")
-
+            # frame_rz = cv2.resize(frame1, (480, 640))
             cv2.imshow('PiP View (Cam0 + Cam1)', frame1)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -275,6 +276,7 @@ def display_img2img(detection_output_queue1, detection_output_queue2, stop_event
 if __name__ == '__main__':
     mp.set_start_method('spawn', force=True)
     # main()
+    sorce_vid = r'C:\TASK_DETECT_DRONE\CODES_DETECT_DRONE\YOLO+calc_distance\record_cam1\video_1024_768.mp4' #r'E:\DB_SDU\test_video\fire2_test.mp4' #
     print(f'CPU count: {mp.cpu_count()}')
 
     # Создаем очереди и событие остановки
@@ -285,10 +287,7 @@ if __name__ == '__main__':
     detection_output_queue1 = mp.Queue(maxsize=10) # for cam 1
     detection_output_queue2 = mp.Queue(maxsize=10) # for cam 2
     stop_event = mp.Event()
-
-
-
-
+  
 
     processes = [
         mp.Process(target=camera_process, 

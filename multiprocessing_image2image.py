@@ -58,7 +58,7 @@ def camera_process(cam_id: int, dir_name: str , raw_frame_queue, detection_input
                 if not ret:
                     print("Not read frame")
                     break
-                frame = cv2.resize(frame_in, (1024, 768), interpolation=cv2.INTER_AREA)   # ! 1024x768 уменьшаю потому что видео большое 360x640
+                frame = cv2.resize(frame_in, (768, 1024), interpolation=cv2.INTER_AREA)   # ! 1024x768 уменьшаю потому что видео большое 360x640
                 # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)                            # !
                 #send cadr to record
                 if raw_frame_queue.full():
@@ -276,7 +276,7 @@ def display_img2img(detection_output_queue1, detection_output_queue2, stop_event
 if __name__ == '__main__':
     mp.set_start_method('spawn', force=True)
     # main()
-    sorce_vid = r'C:\TASK_DETECT_DRONE\CODES_DETECT_DRONE\YOLO+calc_distance\record_cam1\video_1024_768.mp4' #r'E:\DB_SDU\test_video\fire2_test.mp4' #
+    sorce_vid = r'E:\DB_SDU\test_video\fire2_test.mp4' #r'C:\TASK_DETECT_DRONE\CODES_DETECT_DRONE\YOLO+calc_distance\record_cam1\video_1024_768.mp4' #
     print(f'CPU count: {mp.cpu_count()}')
 
     # Создаем очереди и событие остановки

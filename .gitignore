@@ -4,8 +4,12 @@ weights_yolo
 yolo11m.onnx
 yolo11m.pt
 yolo11n.pt
-weights_sdu_v3
+# weights_sdu_v3
+best_sdu_v3.onnx
+best_sdu_v3.pt
 weights_botsort_boxmot
 yolo11n-cls.engine
 yolo11n-cls.onnx
 yolo11n-cls.pt
+backup_files
+*.jpg
